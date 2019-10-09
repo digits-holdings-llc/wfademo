@@ -8,11 +8,30 @@ html
     .container
       .row
         .col
-          h1 Workforce Demo
+          h1 Workforce Automation Demo
+
+      .row
+        .col
+          h2 Instructions
+          p
+            | This demo will sequentially text the numbers below, in the order you see them.
+            | Each will receive a message offering an opportunity to work. If the staff member
+            | sends back a YES, we will tell them that we will contact them soon with details. If
+            | they do not respond in two minutes, we will thank them and contact the next staff
+            | member on the list.  
+
+          p 
+            | To start this demo, press the start button below. When you press the start button, 
+            | the first staff member will be in the "Contacting" state. Refresh your screen to 
+            | refresh the status.
       .row
         .col
           a.btn.btn-primary(href="/start")
-            | Start Demo
+            | Start
+      hr
+      .row
+        .col
+          h2 Workforce Status
       .row
         .col
           table.table
@@ -27,6 +46,12 @@ html
                   td
                     a.btn.btn-primary(href="/delete/"+employee.cell)
                       | DELETE
+      hr
+      .row
+        .col
+          h2 Configuration
+          p
+            | Add the cell phone of the staff members below
       .row
         .col
           .form-row

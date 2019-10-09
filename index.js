@@ -1,9 +1,10 @@
 const express = require('express')
 const app = express()
-const port = 3000
+const port = 80
 var MongoClient = require('mongodb').MongoClient
 const axios = require('axios')
 var contactTimeout
+const mongoURL='mongodb://localhost:27017/demo'
 
 function notify(dst, txt) {
   var url = "https://app.tendigittext.com/sendMsg"
@@ -26,7 +27,7 @@ function notify(dst, txt) {
 }
 
 function add(cell) {
-  MongoClient.connect('mongodb+srv://howethomas:T3nd1g1t!@laptop-m4ayv.mongodb.net/test?retryWrites=true&w=majority', function (err, client) {
+  MongoClient.connect(mongoURL, function (err, client) {
     if (err) throw err
     var db = client.db('test')
     db.collection('staff').insert({cell}, function (err, result) {
@@ -35,7 +36,7 @@ function add(cell) {
   })
 }
 function deleteStaff(cell) {
-  MongoClient.connect('mongodb+srv://howethomas:T3nd1g1t!@laptop-m4ayv.mongodb.net/test?retryWrites=true&w=majority', function (err, client) {
+  MongoClient.connect(mongoURL, function (err, client) {
     if (err) throw err
     var db = client.db('test')
     db.collection('staff').remove({cell}, function (err, result) {
@@ -58,7 +59,7 @@ app.post('/', function(request, response){
       console.log("Ignoring egress message")
       response.send({})
     } else {
-      MongoClient.connect('mongodb+srv://howethomas:T3nd1g1t!@laptop-m4ayv.mongodb.net/test?retryWrites=true&w=majority', function (err, client) {
+      MongoClient.connect(mongoURL, function (err, client) {
         if (err) throw err
         var db = client.db('test')
         db.collection('staff').findOne({status: "Contacting"}, function (err, r) {
@@ -66,7 +67,7 @@ app.post('/', function(request, response){
           console.log("We are currently speaking with ", r)  
           if ("1"+inboundMsg.msg.src == r.cell) {
             console.log("And this is him!")
-            if (inboundMsg.msg.txt == "YES") {
+            if (inboundMsg.msg.txt.toUpperCase().trim() == "YES") {
               console.log("Winner winner chicken dinner")
               // Cancel the timer
               if (typeof contactTimeout !== 'undefined') {
@@ -83,7 +84,7 @@ app.post('/', function(request, response){
   });
 
 app.get('/', function(request, response) {
-  MongoClient.connect('mongodb+srv://howethomas:T3nd1g1t!@laptop-m4ayv.mongodb.net/test?retryWrites=true&w=majority', function (err, client) {
+  MongoClient.connect(mongoURL, function (err, client) {
     if (err) throw err
     var db = client.db('test')
     db.collection('staff').find().toArray(function (err, result) {
@@ -105,7 +106,7 @@ app.post('/new_staff', function(request, response) {
   })
 
 function startDialog() {
-  MongoClient.connect('mongodb+srv://howethomas:T3nd1g1t!@laptop-m4ayv.mongodb.net/test?retryWrites=true&w=majority', function (err, client) {
+  MongoClient.connect(mongoURL, function (err, client) {
     if (err) throw err
     var db = client.db('test')
  
@@ -116,7 +117,7 @@ function startDialog() {
         return
       }
       console.log("Starting dialog with ", staff.cell)    
-      var announcement = "We are looking for staff for next Friday. Please send a YES back if you can help out"
+      var announcement = "Looking for crew for FLIGHT 001, BOS-PVD, TUE 8:40AM. Please send a YES back if you can help out"
       notify(staff.cell, announcement)
       db.collection("staff").update({cell: staff.cell}, {$set: {status: "Contacting"}})
       // Set a timeout 
@@ -127,13 +128,13 @@ function startDialog() {
           // Find the next one
           startDialog()
         })
-      }, 20000);
+      }, 120000);
     })
   })
 }
 
 app.get('/start', function(request, response) {
-  MongoClient.connect('mongodb+srv://howethomas:T3nd1g1t!@laptop-m4ayv.mongodb.net/test?retryWrites=true&w=majority', function (err, client) {
+  MongoClient.connect(mongoURL, function (err, client) {
     if (err) throw err
     var db = client.db('test')
     db.collection("staff").updateMany({}, {$set: {status: "uncontacted"}}, function (err, r) {
