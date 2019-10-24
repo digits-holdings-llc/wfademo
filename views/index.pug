@@ -25,7 +25,7 @@ html
             | the first staff member will be in the "Contacting" state. Refresh your screen to 
             | refresh the status.
       .row
-        .col
+        .col-md-2.offset-md-10
           a.btn.btn-primary(href="/start")
             | Start
       hr
@@ -53,7 +53,7 @@ html
           p
             | Add the cell phone of the staff members below
       .row
-        .col
+        .col-md-6
           .form-row
             form(action="/new_staff" method="POST")
               .form-group

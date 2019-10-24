@@ -176,7 +176,7 @@ app.get('/', function(request, response) {
     var db = client.db(DB_NAME)
     db.collection('staff').find().toArray(function (err, result) {
       if (err) throw err
-      response.render('index', { title: 'Hey', staff: result })
+      response.render('index', { title: 'Workforce Automation Demo', staff: result })
     })
   })
 })
