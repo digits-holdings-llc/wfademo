@@ -28,7 +28,7 @@ async function notify(dst, txt) {
     var headers = {
       "Authorization": systemConfig.authorization,
       'Content-Type': 'application/json',
-      'Host': 'qa.digits.holdings'
+      'Host': systemConfig.host  
     }
     httpConfig = {
       headers, 
@@ -78,7 +78,38 @@ async function deleteStaff(cell) {
     client.close();
   }
 }
+async function startDialog() {
+  const client = await MongoClient.connect(mongoURL).catch(err => {console.log("Mongo Client Connect error", err)})
+  const db = client.db(DB_NAME)
+  if (!client) {
+    return;
+  }
+  try {
+    let configColl = db.collection('config')
+    let systemConfig = await configColl.findOne()
 
+    let staffColl = db.collection('staff')
+    let staffMember = await staffColl.findOne({status: "uncontacted"})
+    if (!staffMember) {
+      console.log("Ran out of people")
+      return
+    }
+    console.log("Starting dialog with ", staffMember.cell)    
+    notify(staffMember.cell, systemConfig.announcement)
+    await staffColl.update({cell: staffMember.cell}, {$set: {status: "Contacting"}})
+    contactTimeout = setTimeout(async () => {
+      notify(staffMember.cell, systemConfig.thankYouAnnouncement)
+      // Clear this request
+      await staffColl.update({cell: staffMember.cell}, {$set: {status: "declined"}})
+      startDialog()
+    }, 120000);
+  } catch (err) {
+    console.log(err);
+  } finally {
+    client.close();
+  }
+ }
+ 
 // Parse JSON bodies (as sent by API clients)
 app.use(express.json());
 app.use(express.urlencoded());
@@ -88,7 +119,15 @@ app.set('views', './views')
 // Access the parse results as request.body
 app.post('/', async function(request, response){
   var inboundMsg = request.body;
-  console.log("Here's a new message!", inboundMsg)
+
+  console.log("Here's a observer post!", inboundMsg)
+  // If this is a session end event, ignore
+  if (inboundMsg.type == 'session_end' || inboundMsg.type == 'new_session') {
+    console.log("Ignoring session lifecyle hook")
+    response.send({})
+    return;
+  }
+
   console.log("New message : ", inboundMsg.msg.src, ":", inboundMsg.msg.txt)
   if (request.body.msg.direction == "egress") {
     console.log("Ignoring egress message")
@@ -153,45 +192,23 @@ app.post('/new_staff', function(request, response) {
   response.redirect("/")
   })
 
-function startDialog() {
-  MongoClient.connect(mongoURL, function (err, client) {
-    if (err) throw err
-    var db = client.db(DB_NAME)
- 
-    db.collection('staff').findOne({status: "uncontacted"}, function (err, staff) {
-      if (err) throw err
-      if (!staff) {
-        console.log("Ran out of people")
-        return
-      }
-      console.log("Starting dialog with ", staff.cell)    
-      var announcement = "Looking for crew for FLIGHT 001, BOS-PVD, TUE 8:40AM. Please send a YES back if you can help out"
-      notify(staff.cell, announcement)
-      db.collection("staff").update({cell: staff.cell}, {$set: {status: "Contacting"}})
-      // Set a timeout 
-      contactTimeout = setTimeout(() => {
-        notify(staff.cell, "OK, we will look for other staff. Thank you!")
-        // Clear this request
-        db.collection("staff").update({cell: staff.cell}, {$set: {status: "declined"}}, function (err, result) {
-          // Find the next one
-          startDialog()
-        })
-      }, 120000);
-    })
-  })
-}
 
-app.get('/start', function(request, response) {
-  MongoClient.connect(mongoURL, function (err, client) {
-    if (err) throw err
-    var db = client.db(DB_NAME)
-    db.collection("staff").updateMany({}, {$set: {status: "uncontacted"}}, function (err, r) {
-      if (err) throw err
-      startDialog()
-      console.log("Started")
-      response.redirect("/")
-    })
-  })
+app.get('/start', async function(request, response) {
+  const client = await MongoClient.connect(mongoURL).catch(err => {console.log("Mongo Client Connect error", err)})
+  const db = client.db(DB_NAME)
+  if (!client) {
+    return;
+  }
+  try {
+    let staffColl = db.collection('staff')
+    let staffMember = await staffColl.updateMany({}, {$set: {status: "uncontacted"}})
+    startDialog()
+    response.redirect("/")
+  } catch (err) {
+    console.log(err);
+  } finally {
+    client.close();
+  }
 })
 
 app.listen(port, () => console.log(`Example app listening on port ${port}!`))
