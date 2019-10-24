@@ -1,48 +1,82 @@
 const express = require('express')
 const app = express()
-const port = 80
+const port = process.env.WEB_PORT || 80
 var MongoClient = require('mongodb').MongoClient
 const axios = require('axios')
 var contactTimeout
-const mongoURL='mongodb://localhost:27017/demo'
+const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/wfa'
+const parts = mongoURL.split("/")
+const DB_NAME = parts[parts.length - 1]
 
-function notify(dst, txt) {
-  var url = "https://app.tendigittext.com/sendMsg"
-  
-  var params = {
-    txt,
-    dst
+console.log("DB_NAME", DB_NAME)
+
+async function notify(dst, txt) {
+  const client = await MongoClient.connect(mongoURL).catch(err => {console.log("Mongo Client Connect error", err)})
+  if (!client) {
+    return;
   }
-  var headers = {
-    "authorization": "uMCvYfW4Z7dxrpyiq"
+  try {
+    console.log("Notifying ", dst, txt)
+    const db = client.db(DB_NAME)
+    let collection = db.collection('config')
+    let systemConfig = await collection.findOne()
+    console.log("Config is ", systemConfig)
+    var params = {
+      txt,
+      dst
+    }
+    var headers = {
+      "Authorization": systemConfig.authorization,
+      'Content-Type': 'application/json',
+      'Host': 'qa.digits.holdings'
+    }
+    httpConfig = {
+      headers, 
+      params
+    }
+    axios.get(systemConfig.url, httpConfig)
+    .catch((error) => {
+      console.error(error)
+    })
+  } catch (err) {
+    console.log(err);
+  } finally {
+    client.close();
   }
-  config = {
-    headers, 
-    params
-  }
-  axios.get(url, config)
-  .catch((error) => {
-    console.error(error)
-  })
 }
 
-function add(cell) {
-  MongoClient.connect(mongoURL, function (err, client) {
-    if (err) throw err
-    var db = client.db('test')
-    db.collection('staff').insert({cell}, function (err, result) {
-      if (err) throw err
-    })
-  })
+async function add(cell) {
+  const client = await MongoClient.connect(mongoURL).catch(err => {console.log("Mongo Client Connect error", err)})
+  if (!client) {
+    return;
+  }
+  try {
+    console.log("Adding ", cell)
+    const db = client.db(DB_NAME)
+    let collection = db.collection('staff')
+    await collection.insertOne({cell})
+  } catch (err) {
+    console.log(err);
+  } finally {
+    client.close();
+  }
 }
-function deleteStaff(cell) {
-  MongoClient.connect(mongoURL, function (err, client) {
-    if (err) throw err
-    var db = client.db('test')
-    db.collection('staff').remove({cell}, function (err, result) {
-      if (err) throw err
-    })
-  })
+
+async function deleteStaff(cell) {
+  const client = await MongoClient.connect(mongoURL).catch(err => {console.log("Mongo Client Connect error", err)})
+  if (!client) {
+    return;
+  }
+  try {
+    console.log("Removing ", cell)
+    const db = client.db(DB_NAME)
+    let collection = db.collection('staff')
+    await collection.deleteMany({cell})
+  } catch (err) {
+    console.log(err);
+  } finally {
+    client.close();
+  }
 }
 
 // Parse JSON bodies (as sent by API clients)
@@ -52,41 +86,55 @@ app.set('view engine', 'pug')
 app.set('views', './views')
 
 // Access the parse results as request.body
-app.post('/', function(request, response){
-    var inboundMsg = request.body;
-    console.log("New message : ", inboundMsg.msg.src, ":", inboundMsg.msg.txt)
-    if (request.body.msg.direction == "egress") {
-      console.log("Ignoring egress message")
+app.post('/', async function(request, response){
+  var inboundMsg = request.body;
+  console.log("Here's a new message!", inboundMsg)
+  console.log("New message : ", inboundMsg.msg.src, ":", inboundMsg.msg.txt)
+  if (request.body.msg.direction == "egress") {
+    console.log("Ignoring egress message")
+    response.send({})
+    return;
+  } 
+    
+  const client = await MongoClient.connect(mongoURL).catch(err => {console.log("Mongo Client Connect error", err)})
+  if (!client) {
+    console.log("Cannot attach")
+    return;
+  }
+  try {
+    const db = client.db(DB_NAME)
+    let collection = db.collection('staff')
+    let staffMember = await collection.findOne({status: "Contacting"})
+    if (!staffMember) {
+      console.log("No staff member here")
       response.send({})
-    } else {
-      MongoClient.connect(mongoURL, function (err, client) {
-        if (err) throw err
-        var db = client.db('test')
-        db.collection('staff').findOne({status: "Contacting"}, function (err, r) {
-          if (err) throw err
-          console.log("We are currently speaking with ", r)  
-          if ("1"+inboundMsg.msg.src == r.cell) {
-            console.log("And this is him!")
-            if (inboundMsg.msg.txt.toUpperCase().trim() == "YES") {
-              console.log("Winner winner chicken dinner")
-              // Cancel the timer
-              if (typeof contactTimeout !== 'undefined') {
-                clearTimeout(contactTimeout)
-              }
-              db.collection("staff").update({cell: r.cell}, {$set: {status: "Accepted"}})
-              notify(r.cell, "Thank you. We will be in touch with details soon.")
-            }
-          }    
-          response.send({})
-        })
-      })  
+      return
     }
-  });
+    console.log("We are currently speaking with ", staffMember)  
+    if (inboundMsg.msg.src == staffMember.cell) {
+      console.log("And this is him!")
+      if (inboundMsg.msg.txt.toUpperCase().trim() == "YES") {
+        console.log("Winner winner chicken dinner")
+        // Cancel the timer
+        if (typeof contactTimeout !== 'undefined') {
+          clearTimeout(contactTimeout)
+        }
+        db.collection("staff").update({cell: staffMember.cell}, {$set: {status: "Accepted"}})
+        notify(staffMember.cell, "Thank you. We will be in touch with details soon.")
+      }
+    }    
+    response.send({})
+  } catch (err) {
+    console.log(err);
+  } finally {
+    client.close();
+  }
+})
 
 app.get('/', function(request, response) {
   MongoClient.connect(mongoURL, function (err, client) {
     if (err) throw err
-    var db = client.db('test')
+    var db = client.db(DB_NAME)
     db.collection('staff').find().toArray(function (err, result) {
       if (err) throw err
       response.render('index', { title: 'Hey', staff: result })
@@ -108,7 +156,7 @@ app.post('/new_staff', function(request, response) {
 function startDialog() {
   MongoClient.connect(mongoURL, function (err, client) {
     if (err) throw err
-    var db = client.db('test')
+    var db = client.db(DB_NAME)
  
     db.collection('staff').findOne({status: "uncontacted"}, function (err, staff) {
       if (err) throw err
@@ -136,7 +184,7 @@ function startDialog() {
 app.get('/start', function(request, response) {
   MongoClient.connect(mongoURL, function (err, client) {
     if (err) throw err
-    var db = client.db('test')
+    var db = client.db(DB_NAME)
     db.collection("staff").updateMany({}, {$set: {status: "uncontacted"}}, function (err, r) {
       if (err) throw err
       startDialog()
