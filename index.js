@@ -158,7 +158,7 @@ app.post('/', async function(request, response){
         if (typeof contactTimeout !== 'undefined') {
           clearTimeout(contactTimeout)
         }
-        db.collection("staff").update({cell: staffMember.cell}, {$set: {status: "Accepted"}})
+        collection("staff").update({cell: staffMember.cell}, {$set: {status: "Accepted"}})
         notify(staffMember.cell, "Thank you. We will be in touch with details soon.")
       }
     }    
