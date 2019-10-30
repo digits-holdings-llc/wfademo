@@ -11,7 +11,7 @@ const DB_NAME = parts[parts.length - 1]
 console.log("DB_NAME", DB_NAME)
 
 async function notify(dst, txt) {
-  const client = await MongoClient.connect(mongoURL).catch(err => {console.log("Mongo Client Connect error", err)})
+  const client = await MongoClient.connect(mongoURL, { useNewUrlParser: true }).catch(err => {console.log("Mongo Client Connect error", err)})
   if (!client) {
     return;
   }
@@ -36,12 +36,31 @@ async function notify(dst, txt) {
     }
     axios.get(systemConfig.url, httpConfig)
     .catch((error) => {
-      console.error(error)
+      console.log("Axios throws an error")
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.log(error.response.data);
+        console.log(error.response.status);
+        console.log(error.response.headers);
+      } else if (error.request) {
+        // The request was made but no response was received
+        // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
+        // http.ClientRequest in node.js
+        console.log("Request error occured.")
+        console.log(error.request);
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.log('Error', error.message);
+      }
+      console.log(error.config);
     })
   } catch (err) {
+    console.log("Error caught in notify function")
     console.log(err);
   } finally {
     client.close();
+    console.log("Notify ends")
   }
 }
 
@@ -85,6 +104,7 @@ async function startDialog() {
     return;
   }
   try {
+    console.log("Start dialog starts")
     let configColl = db.collection('config')
     let systemConfig = await configColl.findOne()
 
@@ -98,15 +118,20 @@ async function startDialog() {
     notify(staffMember.cell, systemConfig.announcement)
     await staffColl.update({cell: staffMember.cell}, {$set: {status: "Contacting"}})
     contactTimeout = setTimeout(async () => {
-      notify(staffMember.cell, systemConfig.thankYouAnnouncement)
+      const client = await MongoClient.connect(mongoURL).catch(err => {console.log("Mongo Client Connect error", err)})
+      const db = client.db(DB_NAME)    
+      let staffColl = db.collection('staff')
+      notify(staffMember.cell, systemConfig.noThankYouAnnouncement)
       // Clear this request
       await staffColl.update({cell: staffMember.cell}, {$set: {status: "declined"}})
+      client.close();
       startDialog()
     }, 120000);
   } catch (err) {
     console.log(err);
   } finally {
     client.close();
+    console.log("Start dialog ends")
   }
  }
  
@@ -158,8 +183,8 @@ app.post('/', async function(request, response){
         if (typeof contactTimeout !== 'undefined') {
           clearTimeout(contactTimeout)
         }
-        collection("staff").update({cell: staffMember.cell}, {$set: {status: "Accepted"}})
-        notify(staffMember.cell, "Thank you. We will be in touch with details soon.")
+        collection.update({cell: staffMember.cell}, {$set: {status: "Accepted"}})
+        notify(staffMember.cell, "Thank you for helping out. We will be in touch with details soon.")
       }
     }    
     response.send({})
@@ -200,6 +225,7 @@ app.get('/start', async function(request, response) {
     return;
   }
   try {
+    console.log("Start begins")
     let staffColl = db.collection('staff')
     let staffMember = await staffColl.updateMany({}, {$set: {status: "uncontacted"}})
     startDialog()
@@ -208,6 +234,7 @@ app.get('/start', async function(request, response) {
     console.log(err);
   } finally {
     client.close();
+    console.log("Start ends")
   }
 })
 
