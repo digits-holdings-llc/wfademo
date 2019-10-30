@@ -2,7 +2,7 @@ const express = require('express')
 const app = express()
 const port = process.env.WEB_PORT || 80
 var MongoClient = require('mongodb').MongoClient
-const axios = require('axios')
+const { GraphQLClient } = require('graphql-request')
 var contactTimeout
 const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/wfa'
 const parts = mongoURL.split("/")
@@ -10,7 +10,7 @@ const DB_NAME = parts[parts.length - 1]
 
 console.log("DB_NAME", DB_NAME)
 
-async function notify(dst, txt) {
+async function notify(src, dst, txt) {
   const client = await MongoClient.connect(mongoURL, { useNewUrlParser: true }).catch(err => {console.log("Mongo Client Connect error", err)})
   if (!client) {
     return;
@@ -21,40 +21,34 @@ async function notify(dst, txt) {
     let collection = db.collection('config')
     let systemConfig = await collection.findOne()
     console.log("Config is ", systemConfig)
-    var params = {
-      txt,
-      dst
-    }
-    var headers = {
-      "Authorization": systemConfig.authorization,
-      'Content-Type': 'application/json',
-      'Host': systemConfig.host  
-    }
-    httpConfig = {
-      headers, 
-      params
-    }
-    axios.get(systemConfig.url, httpConfig)
-    .catch((error) => {
-      console.log("Axios throws an error")
-      if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        console.log(error.response.data);
-        console.log(error.response.status);
-        console.log(error.response.headers);
-      } else if (error.request) {
-        // The request was made but no response was received
-        // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
-        // http.ClientRequest in node.js
-        console.log("Request error occured.")
-        console.log(error.request);
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        console.log('Error', error.message);
-      }
-      console.log(error.config);
+    
+    const graphQLClient = new GraphQLClient(systemConfig.url, {
+      headers: {
+        "x-api-token": systemConfig.authorization,
+        'Content-Type': 'application/json',
+        'Host': systemConfig.host,  
+        },
     })
+     
+    const query = 
+      `
+      mutation {
+        addMessage(
+          messageInput: {
+            text: "${txt}",
+            handle: "${src}",
+            destination: "${dst}"
+          }
+        )
+        {
+          _id
+        }
+      }
+      `
+    graphQLClient.request(query)
+      .then(data => console.log("GraphQL returns ", data))
+      .catch(error => console.log("GraphQL error: ",JSON.stringify(error, undefined, 2)))
+
   } catch (err) {
     console.log("Error caught in notify function")
     console.log(err);
@@ -115,13 +109,13 @@ async function startDialog() {
       return
     }
     console.log("Starting dialog with ", staffMember.cell)    
-    notify(staffMember.cell, systemConfig.announcement)
+    notify("+17754061131", staffMember.cell, systemConfig.announcement)
     await staffColl.update({cell: staffMember.cell}, {$set: {status: "Contacting"}})
     contactTimeout = setTimeout(async () => {
       const client = await MongoClient.connect(mongoURL).catch(err => {console.log("Mongo Client Connect error", err)})
       const db = client.db(DB_NAME)    
       let staffColl = db.collection('staff')
-      notify(staffMember.cell, systemConfig.noThankYouAnnouncement)
+      notify("+17754061131", staffMember.cell, systemConfig.noThankYouAnnouncement)
       // Clear this request
       await staffColl.update({cell: staffMember.cell}, {$set: {status: "declined"}})
       client.close();
@@ -145,7 +139,6 @@ app.set('views', './views')
 app.post('/', async function(request, response){
   var inboundMsg = request.body;
 
-  console.log("Here's a observer post!", inboundMsg)
   // If this is a session end event, ignore
   if (inboundMsg.type == 'session_end' || inboundMsg.type == 'new_session') {
     console.log("Ignoring session lifecyle hook")
@@ -184,7 +177,7 @@ app.post('/', async function(request, response){
           clearTimeout(contactTimeout)
         }
         collection.update({cell: staffMember.cell}, {$set: {status: "Accepted"}})
-        notify(staffMember.cell, "Thank you for helping out. We will be in touch with details soon.")
+        notify("+17754061131", staffMember.cell, "Thank you for helping out. We will be in touch with details soon.")
       }
     }    
     response.send({})
@@ -227,7 +220,7 @@ app.get('/start', async function(request, response) {
   try {
     console.log("Start begins")
     let staffColl = db.collection('staff')
-    let staffMember = await staffColl.updateMany({}, {$set: {status: "uncontacted"}})
+    await staffColl.updateMany({}, {$set: {status: "uncontacted"}})
     startDialog()
     response.redirect("/")
   } catch (err) {
