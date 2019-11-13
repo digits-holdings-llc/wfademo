@@ -195,6 +195,7 @@ app.post('/', async function(request, response){
         }
         collection.update({cell: staffMember.cell}, {$set: {status: "Declined"}})
         notify(staffMember.cell, systemConfig.nextTimeAnnouncement)
+        startDialog()
       }
     }    
     response.send({})
