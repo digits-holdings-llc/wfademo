@@ -1,0 +1,60 @@
+html
+  head
+    meta(charset='utf-8')
+    meta(name='viewport', content='width=device-width, initial-scale=1, shrink-to-fit=no')
+    link(rel='stylesheet', href='https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css', integrity='sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm', crossorigin='anonymous')
+    title= title
+  body
+    .container
+      .row
+        .col
+          h1 Workforce Automation Demo
+          h2 Configuration
+      .row
+        .col-md-12
+          form(action="/config" method="POST")
+            .form-group
+
+              label(for='announcement') Announcement
+              input#announcement.form-control(type='text', name='announcement', aria-describedby='Announcement Text', placeholder='Looking for crew for FLIGHT 001', value=config.announcement)
+              small#urlHelp.form-text.text-muted Announcement to each staff member.
+
+              label(for='thankYouAnnouncement') Thank You Announcement
+              input#thankYouAnnouncement.form-control(type='text', name='thankYouAnnouncement', aria-describedby='Thank you announcement Text', placeholder='Thank you. Someone will be in touch soon.', value=config.thankYouAnnouncement)
+              small#urlHelp.form-text.text-muted Thank you announcement when staff accepts.
+
+              label(for='noThankYouAnnouncement') No Thank You Announcement
+              input#noThankYouAnnouncement.form-control(type='text', name='noThankYouAnnouncement', aria-describedby='No thank you announcement Text', placeholder='Sorry we couldnt reach you. We will look for another option. Thank you!', value=config.noThankYouAnnouncement)
+              small#noThankYouAnnouncementHelp.form-text.text-muted Thank you announcement when staff accepts.
+
+              label(for='nextTimeAnnouncement') Next Time Announcement
+              input#nextTimeAnnouncement.form-control(type='text', name='nextTimeAnnouncement', aria-describedby='Next time announcement', placeholder='OK, next time maybe!', value=config.nextTimeAnnouncement)
+              small.form-text.text-muted Next Time Announcement.
+
+              label(for='timeout') Timeout in MS
+              input#timeout.form-control(type='text', name='timeout', aria-describedby='Timeout for each request', placeholder='120000', value=config.timeout)
+              small#host.form-text.text-muted Timeout for each staff request, ms
+
+              label(for='host') Host System
+              input#host.form-control(type='text', name='host', aria-describedby='Host URL', placeholder='qa.digits.holdings', value=config.host)
+              small#host.form-text.text-muted URL of host system
+
+              label(for='authorization') Authorization Key
+              input#cell.form-control(type='text', name='authorization', aria-describedby='cellHelp', placeholder='API Key', value=config.authorization)
+              small#cellHelp.form-text.text-muted Authorization key from personal settings tab.
+
+              label(for='url') GraphQL URL
+              input#url.form-control(type='text', name='url', aria-describedby='GraphQL URL', placeholder='https://qa.digits.holdings/sendMsg', value=config.url)
+              small#urlHelp.form-text.text-muted URL of GraphQL API.
+
+              label(for='networkHandle') Network Handle
+              input#networkHandle.form-control(type='text', name='networkHandle', aria-describedby='Network Handle', placeholder='+17754061131', value=config.networkHandle)
+              small#urlHelp.form-text.text-muted Network Handle
+
+              input(type='submit')
+
+    // Optional JavaScript
+    // jQuery first, then Popper.js, then Bootstrap JS
+    script(src='https://code.jquery.com/jquery-3.2.1.slim.min.js', integrity='sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN', crossorigin='anonymous')
+    script(src='https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js', integrity='sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q', crossorigin='anonymous')
+    script(src='https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js', integrity='sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl', crossorigin='anonymous')

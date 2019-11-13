@@ -10,7 +10,7 @@ const DB_NAME = parts[parts.length - 1]
 
 console.log("DB_NAME", DB_NAME)
 
-async function notify(src, dst, txt) {
+async function notify(dst, txt) {
   const client = await MongoClient.connect(mongoURL, { useNewUrlParser: true }).catch(err => {console.log("Mongo Client Connect error", err)})
   if (!client) {
     return;
@@ -36,7 +36,7 @@ async function notify(src, dst, txt) {
         addMessage(
           messageInput: {
             text: "${txt}",
-            handle: "${src}",
+            handle: systemConfig.networkHandle,
             destination: "${dst}"
           }
         )
@@ -109,18 +109,18 @@ async function startDialog() {
       return
     }
     console.log("Starting dialog with ", staffMember.cell)    
-    notify("+17754061131", staffMember.cell, systemConfig.announcement)
+    notify(staffMember.cell, systemConfig.announcement)
     await staffColl.update({cell: staffMember.cell}, {$set: {status: "Contacting"}})
     contactTimeout = setTimeout(async () => {
       const client = await MongoClient.connect(mongoURL).catch(err => {console.log("Mongo Client Connect error", err)})
       const db = client.db(DB_NAME)    
       let staffColl = db.collection('staff')
-      notify("+17754061131", staffMember.cell, systemConfig.noThankYouAnnouncement)
+      notify(staffMember.cell, systemConfig.noThankYouAnnouncement)
       // Clear this request
       await staffColl.update({cell: staffMember.cell}, {$set: {status: "declined"}})
       client.close();
       startDialog()
-    }, 120000);
+    }, systemConfig.timeout);
   } catch (err) {
     console.log(err);
   } finally {
@@ -160,6 +160,9 @@ app.post('/', async function(request, response){
   }
   try {
     const db = client.db(DB_NAME)
+    let configColl = db.collection('config')
+    let systemConfig = await configColl.findOne()
+
     let collection = db.collection('staff')
     let staffMember = await collection.findOne({status: "Contacting"})
     if (!staffMember) {
@@ -177,7 +180,16 @@ app.post('/', async function(request, response){
           clearTimeout(contactTimeout)
         }
         collection.update({cell: staffMember.cell}, {$set: {status: "Accepted"}})
-        notify("+17754061131", staffMember.cell, "Thank you for helping out. We will be in touch with details soon.")
+        notify(staffMember.cell, systemConfig.thankYouAnnouncement)
+      }
+      if (inboundMsg.msg.txt.toUpperCase().trim() == "NO") {
+        console.log("Not him")
+        // Cancel the timer
+        if (typeof contactTimeout !== 'undefined') {
+          clearTimeout(contactTimeout)
+        }
+        collection.update({cell: staffMember.cell}, {$set: {status: "Declined"}})
+        notify(staffMember.cell, systemConfig.nextTimeAnnouncement)
       }
     }    
     response.send({})
@@ -188,6 +200,24 @@ app.post('/', async function(request, response){
   }
 })
 
+// Access the parse results as request.body
+app.post('/config', async function(request, response){
+  var inboundMsg = request.body;
+  console.log("Posted the following ", request.body)
+  const client = await MongoClient.connect(mongoURL).catch(err => {console.log("Mongo Client Connect error", err)})
+
+  try {
+    const db = client.db(DB_NAME)
+    let configColl = db.collection('config')
+    await configColl.updateMany({}, { $set: request.body} )
+  } catch (err) {
+    console.log(err);
+  } finally {
+    client.close();
+  }
+  response.redirect("/config")
+})
+
 app.get('/', function(request, response) {
   MongoClient.connect(mongoURL, function (err, client) {
     if (err) throw err
@@ -195,6 +225,18 @@ app.get('/', function(request, response) {
     db.collection('staff').find().toArray(function (err, result) {
       if (err) throw err
       response.render('index', { title: 'Workforce Automation Demo', staff: result })
+    })
+  })
+})
+
+app.get('/config', function(request, response) {
+  MongoClient.connect(mongoURL, function (err, client) {
+    if (err) throw err
+    var db = client.db(DB_NAME)
+    db.collection('config').findOne({}, function (err, result) {
+      if (err) throw err
+      console.log("Found configuration ", result)
+      response.render('config', { title: 'Workforce Automation Demo', config: result })
     })
   })
 })
