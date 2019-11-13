@@ -36,7 +36,7 @@ async function notify(dst, txt) {
         addMessage(
           messageInput: {
             text: "${txt}",
-            handle: systemConfig.networkHandle,
+            handle: "${systemConfig.networkHandle}",
             destination: "${dst}"
           }
         )
@@ -142,6 +142,11 @@ app.post('/', async function(request, response){
   // If this is a session end event, ignore
   if (inboundMsg.type == 'session_end' || inboundMsg.type == 'new_session') {
     console.log("Ignoring session lifecyle hook")
+    response.send({})
+    return;
+  }
+
+  if (!inboundMsg.msg) {
     response.send({})
     return;
   }
