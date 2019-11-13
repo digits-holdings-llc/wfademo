@@ -117,7 +117,7 @@ async function startDialog() {
       let staffColl = db.collection('staff')
       notify(staffMember.cell, systemConfig.noThankYouAnnouncement)
       // Clear this request
-      await staffColl.update({cell: staffMember.cell}, {$set: {status: "declined"}})
+      await staffColl.update({cell: staffMember.cell}, {$set: {status: "Declined"}})
       client.close();
       startDialog()
     }, systemConfig.timeout);

@@ -7,11 +7,10 @@ html
   body
     .container
       .row
-        .col
+        .col-md-6
           h1 Workforce Automation Demo
-
       .row
-        .col
+        .col-md-6
           h2 Instructions
           p
             | This demo will sequentially text the numbers below, in the order you see them.
@@ -24,16 +23,8 @@ html
             | To start this demo, press the start button below. When you press the start button, 
             | the first staff member will be in the "Contacting" state. Refresh your screen to 
             | refresh the status.
-      .row
-        .col-md-2.offset-md-10
-          a.btn.btn-primary(href="/start")
-            | Start
-      hr
-      .row
-        .col
+        .col-md-6
           h2 Workforce Status
-      .row
-        .col
           table.table
             thead
               th Staff Cell
@@ -44,25 +35,28 @@ html
                   td= employee.cell
                   td= employee.status
                   td
-                    a.btn.btn-primary(href="/delete/"+employee.cell)
-                      | DELETE
+                    a(href="/delete/"+employee.cell)
+                      | x
+          a.btn.btn-primary.pull-right(href="/start")
+            | Start
       hr
       .row
         .col
           h2 Configuration
           p
-            | Add the cell phone of the staff members below, 
+            | Add the cell phone of the staff members
       .row
-        .col-md-6
+        .col-md-5
             form(action="/new_staff" method="POST")
               .form-group
                 label(for='cell') Cell phone number
                 input#cell.form-control(type='text', name='cell', aria-describedby='cellHelp', placeholder='Enter staff cell')
                 small#cellHelp.form-text.text-muted We'll never share your cell phone with anyone else.
-                button.btn.btn-primary(type='submit') Add
+        .col-md-1
+          button.btn.btn-primary(type='submit') Add
       .row
         .col-md-6
-          a.button.btn.btn-primary(href="/config")
+          a(href="/config")
             | Change the automation parameters
 
     // Optional JavaScript
