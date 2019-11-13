@@ -259,7 +259,13 @@ app.post('/new_staff', function(request, response) {
   response.redirect("/")
   })
 
-
+app.post('/notify', function(request, response) {
+  console.log("Here's the stuff to send", request.body)
+  notify(request.body.cell, request.body.text)
+  response.redirect("/")
+  })
+  
+  
 app.get('/start', async function(request, response) {
   const client = await MongoClient.connect(mongoURL).catch(err => {console.log("Mongo Client Connect error", err)})
   const db = client.db(DB_NAME)

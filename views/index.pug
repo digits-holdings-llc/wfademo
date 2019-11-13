@@ -29,11 +29,16 @@ html
             thead
               th Staff Cell
               th Status
+              th 
+              th 
             tbody
               each employee in staff
                 tr
                   td= employee.cell
                   td= employee.status
+                  td
+                    button.btn.btn-primary.notify(href="/notify", data-cell=employee.cell)
+                      | Direct Msg
                   td
                     a(href="/delete/"+employee.cell)
                       | x
@@ -60,6 +65,18 @@ html
 
     // Optional JavaScript
     // jQuery first, then Popper.js, then Bootstrap JS
-    script(src='https://code.jquery.com/jquery-3.2.1.slim.min.js', integrity='sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN', crossorigin='anonymous')
+    script(src='https://code.jquery.com/jquery-3.2.1.min.js', crossorigin='anonymous')
     script(src='https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js', integrity='sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q', crossorigin='anonymous')
     script(src='https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js', integrity='sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl', crossorigin='anonymous')
+
+    script.
+      $( ".notify" ).click(function(event) {
+        text = prompt("What text message do you want to send?")
+        console.log($(event.currentTarget).data("cell"))
+        console.log(text)
+        var dataToPost = {
+          cell: $(event.currentTarget).data("cell"),
+          text: text
+        }
+        $.post("/notify", dataToPost)
+      });
