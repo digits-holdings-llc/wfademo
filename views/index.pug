@@ -51,16 +51,19 @@ html
         .col
           h2 Configuration
           p
-            | Add the cell phone of the staff members below
+            | Add the cell phone of the staff members below, 
       .row
         .col-md-6
-          .form-row
             form(action="/new_staff" method="POST")
               .form-group
                 label(for='cell') Cell phone number
                 input#cell.form-control(type='text', name='cell', aria-describedby='cellHelp', placeholder='Enter staff cell')
                 small#cellHelp.form-text.text-muted We'll never share your cell phone with anyone else.
                 button.btn.btn-primary(type='submit') Add
+      .row
+        .col-md-6
+          a.button.btn.btn-primary(href="/config")
+            | Change the automation parameters
 
     // Optional JavaScript
     // jQuery first, then Popper.js, then Bootstrap JS
