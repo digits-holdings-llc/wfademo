@@ -254,6 +254,7 @@ app.get('/delete/:id', function(request, response) {
 })
 
 app.post('/new_staff', function(request, response) {
+  console.log("Here's the new staff number", request.body.cell)
   add(request.body.cell)
   response.redirect("/")
   })
