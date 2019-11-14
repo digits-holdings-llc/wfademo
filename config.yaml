@@ -1,0 +1,12 @@
+authorization: rfW4eQKAiMxqvyJdo
+url: https://graphql.qa.digits.holdings/graphql
+announcement: Looking for crew for FLIGHT 001, BOS-PVD, TUE 8:40AM. Please send a
+  YES back if you can help out
+thankYouAnnouncement: Thank you. Someone will be in touch soon!!!!
+host: graphql.qa.digits.holdings
+noThankYouAnnouncement: Sorry we couldn't reach you. We will look for another option.
+  Thank you!
+timeout: '120000'
+networkHandle: "+17754061131"
+nextTimeAnnouncement: OK, next time maybe.
+

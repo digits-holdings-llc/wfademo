@@ -7,8 +7,58 @@ var contactTimeout
 const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/wfa'
 const parts = mongoURL.split("/")
 const DB_NAME = parts[parts.length - 1]
+const yaml = require('js-yaml');
+const fs   = require('fs');
+const _ = require('lodash')
 
 console.log("DB_NAME", DB_NAME)
+
+
+// On startup, check to see if there's a configuration in the database.
+// If there isn't, read the local YAML file (if any) and insert it
+async function checkConfig() {
+  const client = await MongoClient.connect(mongoURL).catch(err => {console.log("Mongo Client Connect error", err)})
+  try {
+    const db = client.db(DB_NAME)
+    let configColl = db.collection('config')
+    var config = await configColl.findOne()
+    if (!config) {
+      // read the yaml, convert to JSON
+      // Stick it in the config database
+      var doc = yaml.safeLoad(fs.readFileSync('./config.yaml', 'utf8'));
+      await configColl.insertOne(doc); 
+    } else {
+      console.log("Starting with config ", config)
+    }
+  } catch (err) {
+    console.log(err);
+  } finally {
+    client.close();
+  }
+}
+checkConfig()
+
+async function fetchConfig() {
+  const client = await MongoClient.connect(mongoURL).catch(err => {console.log("Mongo Client Connect error", err)})
+  try {
+    const db = client.db(DB_NAME)
+    let configColl = db.collection('config')
+    var config = await configColl.findOne()
+  } catch (err) {
+    console.log(err);
+  } finally {
+    client.close();
+  }
+  return config
+}
+
+app.use((req, res, next) => {
+  var config = fetchConfig()
+  config.then((config) => {
+    req.config = config
+    next()
+  })
+})  
 
 async function notify(dst, txt) {
   const client = await MongoClient.connect(mongoURL, { useNewUrlParser: true }).catch(err => {console.log("Mongo Client Connect error", err)})
@@ -16,12 +66,9 @@ async function notify(dst, txt) {
     return;
   }
   try {
-    console.log("Notifying ", dst, txt)
     const db = client.db(DB_NAME)
     let collection = db.collection('config')
-    let systemConfig = await collection.findOne()
-    console.log("Config is ", systemConfig)
-    
+    let systemConfig = await collection.findOne()    
     const graphQLClient = new GraphQLClient(systemConfig.url, {
       headers: {
         "x-api-token": systemConfig.authorization,
@@ -64,7 +111,6 @@ async function add(cell) {
     return;
   }
   try {
-    console.log("Adding ", cell)
     const db = client.db(DB_NAME)
     let collection = db.collection('staff')
     await collection.insertOne({cell})
@@ -81,7 +127,6 @@ async function deleteStaff(cell) {
     return;
   }
   try {
-    console.log("Removing ", cell)
     const db = client.db(DB_NAME)
     let collection = db.collection('staff')
     await collection.deleteMany({cell})
@@ -141,7 +186,6 @@ app.post('/', async function(request, response){
 
   // If this is a session end event, ignore
   if (inboundMsg.type == 'session_end' || inboundMsg.type == 'new_session') {
-    console.log("Ignoring session lifecyle hook")
     response.send({})
     return;
   }
@@ -153,7 +197,6 @@ app.post('/', async function(request, response){
 
   console.log("New message : ", inboundMsg.msg.src, ":", inboundMsg.msg.txt)
   if (request.body.msg.direction == "egress") {
-    console.log("Ignoring egress message")
     response.send({})
     return;
   } 
@@ -177,7 +220,6 @@ app.post('/', async function(request, response){
     }
     console.log("We are currently speaking with ", staffMember)  
     if (inboundMsg.msg.src == staffMember.cell) {
-      console.log("And this is him!")
       if (inboundMsg.msg.txt.toUpperCase().trim() == "YES") {
         console.log("Winner winner chicken dinner")
         // Cancel the timer
@@ -188,7 +230,6 @@ app.post('/', async function(request, response){
         notify(staffMember.cell, systemConfig.thankYouAnnouncement)
       }
       if (inboundMsg.msg.txt.toUpperCase().trim() == "NO") {
-        console.log("Not him")
         // Cancel the timer
         if (typeof contactTimeout !== 'undefined') {
           clearTimeout(contactTimeout)
@@ -208,8 +249,6 @@ app.post('/', async function(request, response){
 
 // Access the parse results as request.body
 app.post('/config', async function(request, response){
-  var inboundMsg = request.body;
-  console.log("Posted the following ", request.body)
   const client = await MongoClient.connect(mongoURL).catch(err => {console.log("Mongo Client Connect error", err)})
 
   try {
@@ -236,31 +275,29 @@ app.get('/', function(request, response) {
 })
 
 app.get('/config', function(request, response) {
-  MongoClient.connect(mongoURL, function (err, client) {
-    if (err) throw err
-    var db = client.db(DB_NAME)
-    db.collection('config').findOne({}, function (err, result) {
-      if (err) throw err
-      console.log("Found configuration ", result)
-      response.render('config', { title: 'Workforce Automation Demo', config: result })
-    })
-  })
+  config = request.config
+  delete config._id
+
+  // iterate over the keys of the config object
+  // and make a label for each one
+  config.labels = {}
+  for(const prop in config) {
+    config.labels[prop] = _.startCase(prop)
+  }
+  response.render('config', { title: 'Workforce Automation Demo', config })
 })
 
 app.get('/delete/:id', function(request, response) {
-  console.log("Deleting", request.params.id) 
   deleteStaff(request.params.id)
   response.redirect("/")
 })
 
 app.post('/new_staff', function(request, response) {
-  console.log("Here's the new staff number", request.body.cell)
   add(request.body.cell)
   response.redirect("/")
   })
 
 app.post('/notify', function(request, response) {
-  console.log("Here's the stuff to send", request.body)
   notify(request.body.cell, request.body.text)
   response.redirect("/")
   })
