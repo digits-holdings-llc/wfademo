@@ -1,0 +1,12 @@
+{
+    "automation": {
+        "value": "wfademo",
+        "display": "WorkForce Automation Demo"
+    },
+    "application_type": "external",
+    "application_working_directory": "#AUTOMATIONS_PATH/automations/wfademo",
+    "application_executable_path": "wfademo-unit.js",
+    "default_environmental_variables": [
+        "MONGO_URL"
+    ]
+}
