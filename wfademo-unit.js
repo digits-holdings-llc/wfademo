@@ -28,6 +28,8 @@ const DB_NAME = parts[parts.length - 1]
 const yaml = require('js-yaml');
 const fs   = require('fs');
 const _ = require('lodash')
+const qs = require("querystring");
+
 
 console.error("DB_NAME", DB_NAME)
 
@@ -277,7 +279,7 @@ app.post('/config', async function(request, response){
   } finally {
     client.close();
   }
-  response.redirect("/config")
+  response.redirect('/config?' + qs.stringify(request.query))
 })
 
 
@@ -314,17 +316,17 @@ app.get('/config', function(request, response) {
 
 app.get('/delete/:id', function(request, response) {
   deleteStaff(request.params.id)
-  response.redirect("/")
+  response.redirect('/?' + qs.stringify(request.query));
 })
 
 app.post('/new_staff', function(request, response) {
   add(request.body.cell)
-  response.redirect("/")
+  response.redirect('/?' + qs.stringify(request.query));
   })
 
 app.post('/notify', function(request, response) {
   notify(request.body.cell, request.body.text)
-  response.redirect("/")
+  response.redirect('/?' + qs.stringify(request.query));
   })
   
   
@@ -339,7 +341,7 @@ app.get('/start', async function(request, response) {
     let staffColl = db.collection('staff')
     await staffColl.updateMany({}, {$set: {status: "uncontacted"}})
     startDialog()
-    response.redirect("/")
+    response.redirect('/?' + qs.stringify(request.query));
   } catch (err) {
     console.log(err);
   } finally {
